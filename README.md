@@ -10,7 +10,7 @@
 ## 下载
 
 [Github release](https://github.com/Arkfans/Shu-Plot-Purchase-Extension/releases)  
-[蓝奏云](https://wwk.lanzouq.com/b029rqh8f)
+[蓝奏云](https://meeboo.lanzouq.com/b029rqh8f)
 
 ## 安装方法
 
