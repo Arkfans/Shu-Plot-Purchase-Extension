@@ -247,8 +247,7 @@ const bill = computed(() => {
 const billTableData = ref([])
 const total = ref(0)
 
-watch(bill, () => {
-    const dataSource = running.value ? runningBill : bill
+function getBillTableData (dataSource) {
     const res = []
     const sortedCrop = getSortedCrop()
     total.value = 0
@@ -265,7 +264,19 @@ watch(bill, () => {
         })
         total.value += dataSource.value[cropId] * cropData.value.price[cropId]
     }
-    billTableData.value = res
+    return res
+}
+
+watch(bill, () => {
+    if (!running.value) {
+        billTableData.value = getBillTableData(bill)
+    }
+}, { deep: true })
+
+watch(runningBill, () => {
+    if (running.value) {
+        billTableData.value = getBillTableData(runningBill)
+    }
 }, { deep: true })
 
 function handleOperateChange () {
