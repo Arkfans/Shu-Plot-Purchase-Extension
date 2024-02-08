@@ -10,7 +10,7 @@
     "content_scripts": [
         {
             "matches": [
-                "https://ak.hypergryph.com/activity/experimental-plot"
+                "https://ak.hypergryph.com/activity/experimental-plot*"
             ],
             "js": [
                 "assets/content.js"
