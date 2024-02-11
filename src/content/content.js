@@ -10,6 +10,7 @@ let currETACalculator = new ETACalculator([])
 
 let totalOperation = 0
 let processedOperation = 0
+let operateMode = 'stable'
 
 for (const key in xpath) {
     if (Object.prototype.hasOwnProperty.call(xpath, key)) {
@@ -93,6 +94,12 @@ function _operate (times, end, callback, fallback, data) {
     const startTime = Date.now()
     updateETA()
     checkStop()
+
+    const finish = () => {
+        currETACalculator.rectifyOperate(times, Date.now() - startTime)
+        logInfo('operated completely')
+        callback(true)
+    }
     // 单元操作(最大数量10)
     const clean = (i) => {
         // 关闭确认窗口
@@ -104,9 +111,7 @@ function _operate (times, end, callback, fallback, data) {
                 if (--i) {
                     clean(i)
                 } else {
-                    currETACalculator.rectifyOperate(times, Date.now() - startTime)
-                    logInfo('operated completely')
-                    callback(true)
+                    finish()
                 }
             }, fallback, operationTimeout, 0)
         }, fallback, operationTimeout, 0)
@@ -120,7 +125,12 @@ function _operate (times, end, callback, fallback, data) {
             if (--i) {
                 purchase(i)
             } else {
-                clean(times)
+                if (operateMode === 'fast') {
+                    logInfo('fast mode pass closing')
+                    finish()
+                } else {
+                    clean(times)
+                }
             }
         }, operationCd)
     }
@@ -208,12 +218,14 @@ function checkStop () {
 }
 
 function handleOperate (data) {
+    operateMode = data.mode
+    console.log(data)
     totalOperation = calcOperationNumber(data.crops)
     processedOperation = 0
     StateManager.running = true
-    currETACalculator = new ETACalculator(data.crops)
+    currETACalculator = new ETACalculator(data.crops, data.mode)
     updateETA()
-    logInfo(` start to ${data.operation}`)
+    logInfo(` start to ${data.operation} mode: ${data.mode}`)
 
     function fetchAndOperate () {
         checkStop()

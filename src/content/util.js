@@ -54,7 +54,7 @@ function average (nums, defaultValue) {
 }
 
 class ETACalculator {
-    constructor (data) {
+    constructor (data, mode) {
         this.data = copy(data)
         this.addDelay = []
         this.navigateDely = []
@@ -62,7 +62,7 @@ class ETACalculator {
         this.totalOperation = calcOperationNumber(data)
         this.addInitialDely = 50
         this.navigateInitialDely = 100
-        this.operateInitialDely = 450
+        this.operateInitialDely = mode === 'fast' ? 0 : 450
     }
 
     calcNavigate () {
@@ -83,7 +83,6 @@ class ETACalculator {
 
     rectifyOperate (times, realCost) {
         this.operateDelay.push((realCost - times * operationCd) / times)
-        console.log(this.operateDelay, 'cbe')
     }
 
     calcAllCost () {

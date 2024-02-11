@@ -13,6 +13,28 @@ const totalOperation = ref(0)
 const processedOperation = ref(0)
 const loadingText = ref('')
 const failed = ref(false)
+const operationMode = ref('stable')
+const showOperationModeAlert = ref(false)
+
+chrome.storage.sync.get(['config.operationMode'], function (result) {
+    for (const key in result) {
+        if (Object.prototype.hasOwnProperty.call(result, key)) {
+            if (key === 'config.operationMode') {
+                operationMode.value = result[key]
+                showOperationModeAlert.value = false
+            }
+            if (key === 'config.allocateMode') {
+                operationMode.value = result[key]
+            }
+        }
+    }
+})
+
+function setStorageData (key, value) {
+    chrome.storage.sync.set({ [key]: value }, function () {
+
+    })
+}
 
 function sendMessage (message, callback) {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -45,7 +67,7 @@ function reset () {
     selectedCrop.value = []
     input.value = ''
     operation.value = 'buy'
-    mode.value = 'all'
+    purchaseMode.value = 'all'
     loadingText.value = ''
     eta.value = ''
     processedOperation.value = 0
@@ -106,7 +128,8 @@ function operate () {
             action: 'operate',
             data: {
                 operation: operation.value,
-                crops
+                crops,
+                mode: operationMode.value
             }
         })
         return true
@@ -136,7 +159,7 @@ const cropDict = {
 
 const selectedCrop = ref([])
 const operation = ref('buy')
-const mode = ref('all')
+const purchaseMode = ref('all')
 const input = ref('')
 
 function getSortedCrop () {
@@ -148,7 +171,7 @@ function getSortedCrop () {
 function getGroupMoney (group = null) {
     let res = 0
     group = group || getSortedCrop()
-    if (['all', 'count', 'percentage'].indexOf(mode.value) !== -1) {
+    if (['all', 'count', 'percentage'].indexOf(purchaseMode.value) !== -1) {
         for (let i = 0; i < group.length; i++) {
             res += cropData.value.price[group[i]]
         }
@@ -159,17 +182,17 @@ function getGroupMoney (group = null) {
 const bill = computed(() => {
     const res = {}
     if (operation.value === 'sell') {
-        if (mode.value === 'all') {
+        if (purchaseMode.value === 'all') {
             for (let i = 0; i < selectedCrop.value.length; i++) {
                 const cropId = selectedCrop.value[i]
                 res[cropId] = cropData.value.bag[cropId]
             }
-        } else if (mode.value === 'count') {
+        } else if (purchaseMode.value === 'count') {
             for (let i = 0; i < selectedCrop.value.length; i++) {
                 const cropId = selectedCrop.value[i]
                 res[cropId] = Math.min(cropData.value.bag[cropId], +input.value)
             }
-        } else if (mode.value === 'percentage') {
+        } else if (purchaseMode.value === 'percentage') {
             const p = +input.value / 100
             for (let i = 0; i < selectedCrop.value.length; i++) {
                 const cropId = selectedCrop.value[i]
@@ -177,25 +200,25 @@ const bill = computed(() => {
             }
         }
     } else {
-        if (mode.value === 'all') {
+        if (purchaseMode.value === 'all') {
             const count = Math.floor(cropData.value.money / getGroupMoney())
             for (let i = 0; i < selectedCrop.value.length; i++) {
                 const cropId = selectedCrop.value[i]
                 res[cropId] = count
             }
-        } else if (mode.value === 'count') {
+        } else if (purchaseMode.value === 'count') {
             for (let i = 0; i < selectedCrop.value.length; i++) {
                 const cropId = selectedCrop.value[i]
                 res[cropId] = +input.value
             }
-        } else if (mode.value === 'percentage') {
+        } else if (purchaseMode.value === 'percentage') {
             const p = +input.value / 100
             const count = Math.floor(cropData.value.money * p / getGroupMoney())
             for (let i = 0; i < selectedCrop.value.length; i++) {
                 const cropId = selectedCrop.value[i]
                 res[cropId] = count
             }
-        } else if (mode.value === 'proportion') {
+        } else if (purchaseMode.value === 'proportion') {
             const pattern = input.value.split(/\s+/)
             const last = pattern[pattern.length - 1]
             const length = pattern.length
@@ -280,7 +303,7 @@ watch(runningBill, () => {
 }, { deep: true })
 
 function handleOperateChange () {
-    mode.value = 'all'
+    purchaseMode.value = 'all'
     input.value = ''
 }
 
@@ -295,9 +318,9 @@ function handleSelectChange () {
 const placeholder = computed(() => {
     if (Object.keys(selectedCrop.value).length === 0) {
         return '请选择作物'
-    } else if (mode.value === 'percentage') {
+    } else if (purchaseMode.value === 'percentage') {
         return '0~100'
-    } else if (mode.value === 'all') {
+    } else if (purchaseMode.value === 'all') {
         if (operation.value === 'buy') {
             if (billTableData.value.length) {
                 return billTableData.value[0].count.replace(',', '')
@@ -307,7 +330,7 @@ const placeholder = computed(() => {
         } else {
             return 'ALL'
         }
-    } else if (mode.value === 'count') {
+    } else if (purchaseMode.value === 'count') {
         if (operation.value === 'buy') {
             return '0~' + Math.floor(cropData.value.money / getGroupMoney())
         } else {
@@ -318,7 +341,7 @@ const placeholder = computed(() => {
             }
             return '0~' + Math.max(...bag)
         }
-    } else if (mode.value === 'proportion') {
+    } else if (purchaseMode.value === 'proportion') {
         return Array(getSortedCrop().length).fill(1).join(' ')
     }
     return ''
@@ -326,7 +349,7 @@ const placeholder = computed(() => {
 
 function handleInput (value, change = false) {
     const oldValue = change ? '' : input.value
-    if (mode.value === 'percentage') {
+    if (purchaseMode.value === 'percentage') {
         const number = +value
         if (isNaN(number)) {
             value = oldValue
@@ -336,7 +359,7 @@ function handleInput (value, change = false) {
             value = '100'
         }
     } else if (operation.value === 'buy') {
-        if (mode.value === 'count') {
+        if (purchaseMode.value === 'count') {
             const max = Math.floor(cropData.value.money / getGroupMoney())
             const number = +value
             if (isNaN(number)) {
@@ -347,7 +370,7 @@ function handleInput (value, change = false) {
                 // 可以炒菜，禁止炒饭（）
                 value = '0'
             }
-        } else if (mode.value === 'proportion') {
+        } else if (purchaseMode.value === 'proportion') {
             value = value.replaceAll(/([\s.])+/g, '$1')
             value = value.replaceAll(/(\d+\.\d+)\./g, '$1')
             value = value.replaceAll(/^\s/g, '')
@@ -356,7 +379,7 @@ function handleInput (value, change = false) {
             }
         }
     } else {
-        if (mode.value === 'count') {
+        if (purchaseMode.value === 'count') {
             const number = +value
             if (isNaN(number)) {
                 value = oldValue
@@ -401,7 +424,7 @@ function handleInput (value, change = false) {
             <template v-if="validStatus">
                 <div v-if="cropData?.price?.crop_1">
                     <div style="width: 100%" v-loading="running">
-                        <div style="width: 100%;margin-bottom: 10px">
+                        <div style="width: 100%;margin-bottom: 5px">
                             <el-checkbox-group v-model="selectedCrop" @change="handleSelectChange"
                                                style="display: flex;justify-content: center;flex-wrap: wrap">
                                 <el-checkbox v-for="(name,id) in cropDict" :key="id" :label="id" style="margin: 0 15px">
@@ -411,13 +434,26 @@ function handleInput (value, change = false) {
                                 </el-checkbox>
                             </el-checkbox-group>
                         </div>
+                        <div class="flex-center" style="width: 100%; margin-bottom: 5px">
+                            模式：
+                            <el-switch
+                                v-model="operationMode"
+                                @change="(value) => {setStorageData('config.operationMode',value);showOperationModeAlert=value==='fast'}"
+                                inline-prompt
+                                active-text="稳定" active-value="stable"
+                                inactive-text="快速" inactive-value="fast" inactive-color="#ff4949"
+                            />
+                        </div>
+                        <div v-if="operationMode==='fast'" style="width: 100%; margin-bottom: 10px">
+                            <el-alert type="warning">快速模式不会清理消息，可能会造成严重卡顿</el-alert>
+                        </div>
                         <div style="width:100%;display: flex">
                             <el-select v-model="operation" style="width: 80px;flex-shrink: 0" placement="right-end"
                                        @change="handleOperateChange">
                                 <el-option value="buy" label="购入"/>
                                 <el-option value="sell" label="卖出"/>
                             </el-select>
-                            <el-select v-model="mode" style="width: 90px;flex-shrink: 0" placement="right-end"
+                            <el-select v-model="purchaseMode" style="width: 90px;flex-shrink: 0" placement="right-end"
                                        @change="handleModeChange">
                                 <el-option value="all" label="ALL"/>
                                 <el-option value="count" label="定量"/>
@@ -428,7 +464,7 @@ function handleInput (value, change = false) {
                                 :model-value="input"
                                 @update:model-value="handleInput"
                                 :placeholder="placeholder"
-                                :disabled="mode==='all'"
+                                :disabled="purchaseMode==='all'"
                             />
                         </div>
                     </div>
@@ -460,3 +496,11 @@ function handleInput (value, change = false) {
         </template>
     </div>
 </template>
+
+<style scoped>
+.flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+</style>
