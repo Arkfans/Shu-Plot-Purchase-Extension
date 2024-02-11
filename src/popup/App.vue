@@ -14,17 +14,17 @@ const processedOperation = ref(0)
 const loadingText = ref('')
 const failed = ref(false)
 const operationMode = ref('stable')
+const allocateMode = ref('number')
 const showOperationModeAlert = ref(false)
 
-chrome.storage.sync.get(['config.operationMode'], function (result) {
+chrome.storage.sync.get(['config.operationMode', 'config.allocateMode'], function (result) {
     for (const key in result) {
         if (Object.prototype.hasOwnProperty.call(result, key)) {
             if (key === 'config.operationMode') {
                 operationMode.value = result[key]
-                showOperationModeAlert.value = false
             }
             if (key === 'config.allocateMode') {
-                operationMode.value = result[key]
+                allocateMode.value = result[key]
             }
         }
     }
@@ -69,7 +69,7 @@ function reset () {
     operation.value = 'buy'
     purchaseMode.value = 'all'
     loadingText.value = ''
-    eta.value = ''
+    eta.value = 0
     processedOperation.value = 0
     totalOperation.value = 0
 }
@@ -201,10 +201,18 @@ const bill = computed(() => {
         }
     } else {
         if (purchaseMode.value === 'all') {
-            const count = Math.floor(cropData.value.money / getGroupMoney())
-            for (let i = 0; i < selectedCrop.value.length; i++) {
-                const cropId = selectedCrop.value[i]
-                res[cropId] = count
+            if (allocateMode.value === 'number') {
+                const count = Math.floor(cropData.value.money / getGroupMoney())
+                for (let i = 0; i < selectedCrop.value.length; i++) {
+                    const cropId = selectedCrop.value[i]
+                    res[cropId] = count
+                }
+            } else if (allocateMode.value === 'amount') {
+                const cropMoney = cropData.value.money / selectedCrop.value.length
+                for (let i = 0; i < selectedCrop.value.length; i++) {
+                    const cropId = selectedCrop.value[i]
+                    res[cropId] = Math.floor(cropMoney / cropData.value.price[cropId])
+                }
             }
         } else if (purchaseMode.value === 'count') {
             for (let i = 0; i < selectedCrop.value.length; i++) {
@@ -213,10 +221,19 @@ const bill = computed(() => {
             }
         } else if (purchaseMode.value === 'percentage') {
             const p = +input.value / 100
-            const count = Math.floor(cropData.value.money * p / getGroupMoney())
-            for (let i = 0; i < selectedCrop.value.length; i++) {
-                const cropId = selectedCrop.value[i]
-                res[cropId] = count
+            const validMoney = cropData.value.money * p
+            if (allocateMode.value === 'number') {
+                const count = Math.floor(validMoney / getGroupMoney())
+                for (let i = 0; i < selectedCrop.value.length; i++) {
+                    const cropId = selectedCrop.value[i]
+                    res[cropId] = count
+                }
+            } else if (allocateMode.value === 'amount') {
+                const cropMoney = validMoney / selectedCrop.value.length
+                for (let i = 0; i < selectedCrop.value.length; i++) {
+                    const cropId = selectedCrop.value[i]
+                    res[cropId] = Math.floor(cropMoney / cropData.value.price[cropId])
+                }
             }
         } else if (purchaseMode.value === 'proportion') {
             const pattern = input.value.split(/\s+/)
@@ -225,42 +242,56 @@ const bill = computed(() => {
             for (let i = 0; i < selectedCrop.value.length - length; i++) {
                 pattern.push(last)
             }
-            let hasDecimal = false
-            for (let i = 0; i < pattern.length; i++) {
-                pattern[i] = +pattern[i] || 1
-                if (!Number.isInteger(pattern[i])) {
-                    hasDecimal = true
+            if (allocateMode.value === 'number') {
+                let hasDecimal = false
+                for (let i = 0; i < pattern.length; i++) {
+                    pattern[i] = +pattern[i] || 1
+                    if (!Number.isInteger(pattern[i])) {
+                        hasDecimal = true
+                    }
                 }
-            }
-            if (hasDecimal) {
-                while (true) {
-                    let next = true
-                    for (let i = 0; i < pattern.length; i++) {
-                        pattern[i] *= 10
-                        if (!Number.isInteger(pattern[i])) {
-                            next = false
+                if (hasDecimal) {
+                    while (true) {
+                        let next = true
+                        for (let i = 0; i < pattern.length; i++) {
+                            pattern[i] *= 10
+                            if (!Number.isInteger(pattern[i])) {
+                                next = false
+                            }
+                        }
+                        if (next) {
+                            break
                         }
                     }
-                    if (next) {
-                        break
+                    const gcd = findGCDOfArray(pattern)
+                    for (let i = 0; i < pattern.length; i++) {
+                        pattern[i] /= gcd
                     }
                 }
-                const gcd = findGCDOfArray(pattern)
-                for (let i = 0; i < pattern.length; i++) {
-                    pattern[i] /= gcd
-                }
-            }
 
-            const sortedCrop = getSortedCrop()
-            let singlePrice = 0
-            for (let i = 0; i < sortedCrop.length; i++) {
-                const cropId = sortedCrop[i]
-                singlePrice += cropData.value.price[cropId] * pattern[i]
-            }
-            const count = Math.floor(cropData.value.money / singlePrice)
-            for (let i = 0; i < sortedCrop.length; i++) {
-                const cropId = sortedCrop[i]
-                res[cropId] = count * pattern[i]
+                const sortedCrop = getSortedCrop()
+                let singlePrice = 0
+                for (let i = 0; i < sortedCrop.length; i++) {
+                    const cropId = sortedCrop[i]
+                    singlePrice += cropData.value.price[cropId] * pattern[i]
+                }
+                const count = Math.floor(cropData.value.money / singlePrice)
+                for (let i = 0; i < sortedCrop.length; i++) {
+                    const cropId = sortedCrop[i]
+                    res[cropId] = count * pattern[i]
+                }
+            } else if (allocateMode.value === 'amount') {
+                let total = 0
+                for (let i = 0; i < pattern.length; i++) {
+                    pattern[i] = +pattern[i] || 1
+                    total += pattern[i]
+                }
+                const unitMoney = cropData.value.money / total
+                const sortedCrop = getSortedCrop()
+                for (let i = 0; i < sortedCrop.length; i++) {
+                    const cropId = sortedCrop[i]
+                    res[cropId] = Math.floor(unitMoney * pattern[i] / cropData.value.price[cropId])
+                }
             }
         }
     }
@@ -443,8 +474,17 @@ function handleInput (value, change = false) {
                                 active-text="稳定" active-value="stable"
                                 inactive-text="快速" inactive-value="fast" inactive-color="#ff4949"
                             />
+                            <div style="margin: 0 12px"></div>
+                            分配：
+                            <el-switch
+                                v-model="allocateMode"
+                                inline-prompt
+                                @change="(value) => {setStorageData('config.allocateMode',value)}"
+                                active-text="数量" active-value="number" active-color="#529b2e"
+                                inactive-text="金额" inactive-value="amount" inactive-color="#b88230"
+                            />
                         </div>
-                        <div v-if="operationMode==='fast'" style="width: 100%; margin-bottom: 10px">
+                        <div v-if="showOperationModeAlert" style="width: 100%; margin-bottom: 10px">
                             <el-alert type="warning">快速模式不会清理消息，可能会造成严重卡顿</el-alert>
                         </div>
                         <div style="width:100%;display: flex">
