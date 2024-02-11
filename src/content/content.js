@@ -60,7 +60,7 @@ function sendComplete (result) {
     // 告知popup.js操作已完成
     chrome.runtime.sendMessage({
         action: 'complete',
-        result: { result }
+        result
     })
     sendData()
 }
