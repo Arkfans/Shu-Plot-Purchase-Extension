@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { copy, findGCDOfArray, formatNumber, formatNumberWithCommas, calcOperationNumber, formatTime } from './util.js'
+import { forFirefoxAndroid } from '@/popup/constant.js'
 
 const validPage = ref(true)
 const validStatus = ref(true)
@@ -13,14 +14,14 @@ const totalOperation = ref(0)
 const processedOperation = ref(0)
 const loadingText = ref('')
 const failed = ref(false)
-const operationMode = ref('stable')
+const operationMode = ref(forFirefoxAndroid ? 'fast' : 'stable')
 const allocateMode = ref('number')
 const showOperationModeAlert = ref(false)
 
 chrome.storage.sync.get(['config.operationMode', 'config.allocateMode'], function (result) {
     for (const key in result) {
         if (Object.prototype.hasOwnProperty.call(result, key)) {
-            if (key === 'config.operationMode') {
+            if (key === 'config.operationMode' && !forFirefoxAndroid) {
                 operationMode.value = result[key]
             }
             if (key === 'config.allocateMode') {
@@ -435,7 +436,8 @@ function handleInput (value, change = false) {
 </script>
 
 <template>
-    <div style="width: 300px; font-size: 14px">
+    <div style="font-size: 14px; display: flex;justify-content: center;flex-wrap: wrap"
+         :style="{width:forFirefoxAndroid?'100%':'300px'}">
         <div style="text-align: center">
             <h2>黍的试验田 - 仓库管理插件</h2>
             <h3>
@@ -454,7 +456,7 @@ function handleInput (value, change = false) {
         <template v-if="validPage">
             <template v-if="validStatus">
                 <div v-if="cropData?.price?.crop_1">
-                    <div style="width: 100%" v-loading="running">
+                    <div :style="{width: forFirefoxAndroid?'350px':'100%'}" v-loading="running">
                         <div style="width: 100%;margin-bottom: 5px">
                             <el-checkbox-group v-model="selectedCrop" @change="handleSelectChange"
                                                style="display: flex;justify-content: center;flex-wrap: wrap">
@@ -471,6 +473,7 @@ function handleInput (value, change = false) {
                                 v-model="operationMode"
                                 @change="(value) => {setStorageData('config.operationMode',value);showOperationModeAlert=value==='fast'}"
                                 inline-prompt
+                                :disabled="forFirefoxAndroid"
                                 active-text="稳定" active-value="stable"
                                 inactive-text="快速" inactive-value="fast" inactive-color="#ff4949"
                             />
@@ -485,7 +488,7 @@ function handleInput (value, change = false) {
                             />
                         </div>
                         <div v-if="showOperationModeAlert" style="width: 100%; margin-bottom: 10px">
-                            <el-alert type="warning">快速模式不会清理消息，可能会造成严重卡顿</el-alert>
+                            <el-alert type="warning">快速模式不会清理窗口，可能会造成严重卡顿</el-alert>
                         </div>
                         <div style="width:100%;display: flex">
                             <el-select v-model="operation" style="width: 80px;flex-shrink: 0" placement="right-end"
@@ -528,6 +531,10 @@ function handleInput (value, change = false) {
                 </div>
                 <div v-else style="width: 100%; height: 80px;display: flex;justify-content: center;align-items: center">
                     <el-button @click="getData(true)" style="margin-bottom: 10px">获取数据</el-button>
+                </div>
+                <div v-if="forFirefoxAndroid" style="width: 100%; margin-top: 20px;text-align: center">
+                    <h3>此插件为FirefoxAndroid版本<br/>
+                        购买后不会清理窗口，请手动刷新页面</h3>
                 </div>
             </template>
             <div v-else style="text-align: center">
