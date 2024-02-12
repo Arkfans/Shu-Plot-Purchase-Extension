@@ -5,9 +5,12 @@
 按照 ALL/定量/百分比/比例 四种模式 购入/卖出 作物   
 支持大于999的操作，无需多次点击✅  
 
-![示例](./example.png)
+![示例](./example.jpg)
 
 ## 下载
+
+[Firefox](https://addons.mozilla.org/zh-CN/firefox/addon/shu-plot-purchase-extension)
+[Firefox安卓](https://addons.mozilla.org/zh-CN/firefox/addon/sppeffa)
 
 [Github release](https://github.com/Arkfans/Shu-Plot-Purchase-Extension/releases)  
 [蓝奏云](https://meeboo.lanzouq.com/b029rqh8f)

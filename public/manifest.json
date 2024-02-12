@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "黍的试验田 - 仓库管理插件",
     "description": "通过模拟点击，一键购入/卖出作物，黍再也不用担心我手废了",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "author": "meeboo",
     "permissions": [
         "storage"
